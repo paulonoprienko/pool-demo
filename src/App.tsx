@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { getRandomColor } from "./utils";
 import { Ball } from "./ball";
+import { ColorResult } from "react-color";
 import "./App.css";
+import ColorMenu from "./ColorMenu";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const colorInputRef = useRef<HTMLInputElement>(null);
   const ballsRef = useRef<Ball[]>([]);
+
+  const colorPickerRef = useRef<HTMLDivElement>(null);
 
   const [selectedBallIndex, setSelectedBallIndex] = useState(-1);
   const [currentColor, setCurrentColor] = useState("");
@@ -48,7 +51,7 @@ function App() {
       requestAnimationFrame(animate);
     };
 
-    canvas.addEventListener("mousedown", (e) => {
+    const canvasMousedownListener = (e: MouseEvent) => {
       if (e.button === 2) return;
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -61,9 +64,8 @@ function App() {
           selectedBallIndex = index;
         }
       });
-    });
-
-    canvas.addEventListener("mousemove", (e) => {
+    };
+    const canvasMousemoveListener = (e: MouseEvent) => {
       if (isDragging) {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -72,14 +74,12 @@ function App() {
         ball.dx = (x - ball.x) * 0.5;
         ball.dy = (y - ball.y) * 0.5;
       }
-    });
-
-    canvas.addEventListener("mouseup", () => {
+    };
+    const canvasMouseupListener = () => {
       isDragging = false;
       selectedBallIndex = -1;
-    });
-
-    canvas.addEventListener("contextmenu", (e) => {
+    };
+    const canvasContextListener = (e: MouseEvent) => {
       e.preventDefault();
 
       const rect = canvas.getBoundingClientRect();
@@ -91,36 +91,66 @@ function App() {
         if (distance < ball.radius) {
           setSelectedBallIndex(index);
           setCurrentColor(ballsRef.current[index].color);
+          if (colorPickerRef.current) {
+            colorPickerRef.current.style.left = `${x}px`;
+            colorPickerRef.current.style.top = `${y}px`;
+            colorPickerRef.current.classList.remove("visually-hidden");
+            if (
+              colorPickerRef.current.clientWidth + e.clientX >
+                window.innerWidth &&
+              colorPickerRef.current.clientHeight + e.clientY >
+                window.innerHeight
+            ) {
+              colorPickerRef.current.style.translate = `-100% -100%`;
+            } else if (
+              colorPickerRef.current.clientWidth + e.clientX >
+              window.innerWidth
+            ) {
+              colorPickerRef.current.style.translate = `-100% `;
+            } else if (
+              colorPickerRef.current.clientHeight + e.clientY >
+              window.innerHeight
+            ) {
+              colorPickerRef.current.style.translate = `0 -100%`;
+            } else {
+              colorPickerRef.current.style.translate = `0`;
+            }
+          }
         }
       });
-    });
+    };
+
+    canvas.addEventListener("mousedown", canvasMousedownListener);
+    canvas.addEventListener("mousemove", canvasMousemoveListener);
+    canvas.addEventListener("mouseup", canvasMouseupListener);
+    canvas.addEventListener("contextmenu", canvasContextListener);
 
     animate();
+
+    return () => {
+      canvas.removeEventListener("mousedown", canvasMousedownListener);
+      canvas.removeEventListener("mousemove", canvasMousemoveListener);
+      canvas.removeEventListener("mouseup", canvasMouseupListener);
+      canvas.removeEventListener("contextmenu", canvasContextListener);
+    };
   }, []);
 
-  useEffect(() => {
-    if (currentColor && colorInputRef.current) {
-      const clickEvent = new MouseEvent("click", {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-      });
-      colorInputRef.current.dispatchEvent(clickEvent);
-    }
-  }, [currentColor]);
+  const changeColorHandler = (color: ColorResult) => {
+    setCurrentColor(color.hex);
+    ballsRef.current[selectedBallIndex].color = color.hex;
+  };
 
   return (
     <>
-      <input
-        type="color"
-        className="visually-hidden color-input"
-        onChange={(e) => {
-          ballsRef.current[selectedBallIndex].color = e.target.value;
-        }}
-        ref={colorInputRef}
-        value={currentColor}
-      />
-      <canvas ref={canvasRef} width="800" height="500"></canvas>
+      <div className="canvas-wrapper">
+        <ColorMenu
+          colorPickerRef={colorPickerRef}
+          currentColor={currentColor}
+          resetBallIndex={() => setSelectedBallIndex(-1)}
+          changeColorHandler={changeColorHandler}
+        />
+        <canvas ref={canvasRef} width="800" height="500"></canvas>
+      </div>
     </>
   );
 }

@@ -5,14 +5,19 @@ body {
   height: 100vh;
 }
 canvas {
-  /* border: 1px solid black; */
+  display: block;
+  background-color: green;
+}
+
+.canvas-wrapper {
+  position: relative;
   border: 15px solid brown;
   border-radius: 20px;
-  background-color: green;
 }
 
 .color-input {
   position: absolute;
+  user-select: none;
 }
 
 .visually-hidden {
