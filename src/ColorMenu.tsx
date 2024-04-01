@@ -14,7 +14,7 @@ const ColorMenu = ({
   resetBallIndex,
   changeColorHandler,
 }: Props) => {
-  const closeEventHandler = (e: MouseEvent) => {
+  const closeEventHandler = (e: MouseEvent | TouchEvent) => {
     if (
       colorPickerRef.current &&
       !colorPickerRef.current.contains(e.target as Node)
@@ -26,8 +26,10 @@ const ColorMenu = ({
 
   useEffect(() => {
     document.addEventListener("mousedown", closeEventHandler);
+    document.addEventListener("touchend", closeEventHandler);
     return () => {
       document.removeEventListener("mousedown", closeEventHandler);
+      document.removeEventListener("touchend", closeEventHandler);
     };
   }, []);
 

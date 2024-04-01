@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getRandomColor } from "./utils";
+import { calculateColorMenuPosition, getPoint, getRandomColor } from "./utils";
 import { Ball } from "./ball";
 import { ColorResult } from "react-color";
 import "./App.css";
@@ -51,11 +51,14 @@ function App() {
       requestAnimationFrame(animate);
     };
 
-    const canvasMousedownListener = (e: MouseEvent) => {
-      if (e.button === 2) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+    const handleCanvasStart = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+
+      if ("button" in e && e.button === 2) {
+        return;
+      }
+
+      const { x, y } = getPoint(e, canvas);
 
       ballsRef.current.forEach((ball, index) => {
         const distance = Math.sqrt((x - ball.x) ** 2 + (y - ball.y) ** 2);
@@ -65,21 +68,19 @@ function App() {
         }
       });
     };
-    const canvasMousemoveListener = (e: MouseEvent) => {
+    const handleCanvasMove = (e: MouseEvent | TouchEvent) => {
       if (isDragging) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = getPoint(e, canvas);
         const ball = ballsRef.current[selectedBallIndex];
         ball.dx = (x - ball.x) * 0.5;
         ball.dy = (y - ball.y) * 0.5;
       }
     };
-    const canvasMouseupListener = () => {
+    const handleCanvasEnd = () => {
       isDragging = false;
       selectedBallIndex = -1;
     };
-    const canvasContextListener = (e: MouseEvent) => {
+    const handleContext = (e: MouseEvent) => {
       e.preventDefault();
 
       const rect = canvas.getBoundingClientRect();
@@ -92,46 +93,44 @@ function App() {
           setSelectedBallIndex(index);
           setCurrentColor(ballsRef.current[index].color);
           if (colorPickerRef.current) {
-            colorPickerRef.current.style.left = `${x}px`;
-            colorPickerRef.current.style.top = `${y}px`;
-            colorPickerRef.current.classList.remove("visually-hidden");
-            if (
-              colorPickerRef.current.clientWidth + e.clientX >
-                window.innerWidth &&
-              colorPickerRef.current.clientHeight + e.clientY >
-                window.innerHeight
-            ) {
-              colorPickerRef.current.style.translate = `-100% -100%`;
-            } else if (
-              colorPickerRef.current.clientWidth + e.clientX >
-              window.innerWidth
-            ) {
-              colorPickerRef.current.style.translate = `-100% `;
-            } else if (
-              colorPickerRef.current.clientHeight + e.clientY >
-              window.innerHeight
-            ) {
-              colorPickerRef.current.style.translate = `0 -100%`;
-            } else {
-              colorPickerRef.current.style.translate = `0`;
-            }
+            calculateColorMenuPosition(colorPickerRef.current, e, canvas);
           }
         }
       });
     };
 
-    canvas.addEventListener("mousedown", canvasMousedownListener);
-    canvas.addEventListener("mousemove", canvasMousemoveListener);
-    canvas.addEventListener("mouseup", canvasMouseupListener);
-    canvas.addEventListener("contextmenu", canvasContextListener);
+    let lastTapTime = 0;
+
+    const handleDoubleTap = (e: TouchEvent) => {
+      const currentTime = new Date().getTime();
+      const tapLength = currentTime - lastTapTime;
+      if (tapLength < 300 && tapLength > 0 && colorPickerRef.current) {
+        calculateColorMenuPosition(colorPickerRef.current, e, canvas);
+      }
+      lastTapTime = currentTime;
+    };
+
+    canvas.addEventListener("mousedown", handleCanvasStart);
+    canvas.addEventListener("mousemove", handleCanvasMove);
+    canvas.addEventListener("mouseup", handleCanvasEnd);
+    canvas.addEventListener("contextmenu", handleContext);
+
+    canvas.addEventListener("touchstart", handleCanvasStart);
+    canvas.addEventListener("touchmove", handleCanvasMove);
+    canvas.addEventListener("touchend", handleCanvasEnd);
+    canvas.addEventListener("touchstart", handleDoubleTap);
 
     animate();
 
     return () => {
-      canvas.removeEventListener("mousedown", canvasMousedownListener);
-      canvas.removeEventListener("mousemove", canvasMousemoveListener);
-      canvas.removeEventListener("mouseup", canvasMouseupListener);
-      canvas.removeEventListener("contextmenu", canvasContextListener);
+      canvas.removeEventListener("mousedown", handleCanvasStart);
+      canvas.removeEventListener("mousemove", handleCanvasMove);
+      canvas.removeEventListener("mouseup", handleCanvasEnd);
+      canvas.removeEventListener("touchstart", handleCanvasStart);
+      canvas.removeEventListener("touchmove", handleCanvasMove);
+      canvas.removeEventListener("touchend", handleCanvasEnd);
+      canvas.removeEventListener("contextmenu", handleContext);
+      canvas.removeEventListener("touchstart", handleDoubleTap);
     };
   }, []);
 
